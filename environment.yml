@@ -1,0 +1,8 @@
+name: iFlow
+
+dependencies:
+  - numpy
+  - pytorch
+  - scipy
+  - pip:
+    - tensorboardX
