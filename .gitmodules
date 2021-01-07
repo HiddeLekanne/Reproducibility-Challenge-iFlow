@@ -1,0 +1,3 @@
+[submodule "iFlow"]
+	path = iFlow
+	url = git@github.com:MathsXDC/iFlow.git
