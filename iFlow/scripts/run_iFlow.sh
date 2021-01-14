@@ -1,6 +1,6 @@
 
 
-for seed in $(seq 1 1)
+for seed in $(seq 1 100)
 do
     python main.py \
         -x 1000_40_5_5_3_$seed'_'gauss_xtanh_u_f \
@@ -14,7 +14,8 @@ do
         -e 20 \
         -l 1e-3 \
         -s 1 \
-        -u 0 
+        -u 0 \
+        -c
 done
     
 #python main.py \

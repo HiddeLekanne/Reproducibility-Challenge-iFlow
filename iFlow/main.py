@@ -17,6 +17,7 @@ from lib.utils import Logger, checkpoint
 import os
 import os.path as osp
 import pdb
+import shutil
 
 import datetime
 now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -72,10 +73,14 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
 
     st = time.time()
+    seed_2 = args.data_args.split('_')[5]
 
     if args.file is None:
-        args.file = create_if_not_exist_dataset(root='data/{}/'.format(args.seed), arg_str=args.data_args)
-    
+        args.file = create_if_not_exist_dataset(root='/scratch/{}/'.format(seed_2), arg_str=args.data_args)
+
+    copy_path ="data/" +  "/".join(args.file.split("/")[2:-1])
+    print(copy_path)
+    shutil.copy(args.file, copy_path)
     metadata = vars(args).copy()
     del metadata['no_log'], metadata['data_args']
 

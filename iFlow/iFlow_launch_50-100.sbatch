@@ -4,9 +4,9 @@
 #SBATCH --gres=gpu:1
 #SBATCH --job-name=iFlow
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=3
-#SBATCH --time=00:10:00
-#SBATCH --mem=20000M
+#SBATCH --cpus-per-task=2
+#SBATCH --time=48:00:00
+#SBATCH --mem=10000M
 #SBATCH --output=slurm_output_%A.out
 
 module purge
@@ -18,8 +18,10 @@ module load NCCL/2.5.6-CUDA-10.1.243
 module load Anaconda3/2018.12
 
 source activate iFlow-cuda
-srun python -u main.py \
-        -x 1000_40_5_5_3_0'_'gauss_xtanh_u_f \
+for seed in $(seq 50 100)
+do
+    python main.py \
+        -x 1000_40_5_5_3_$seed'_'gauss_xtanh_u_f \
         -i iFlow \
         -ft RQNSF_AG \
         -npa Softplus \
@@ -31,4 +33,5 @@ srun python -u main.py \
         -l 1e-3 \
         -s 1 \
         -u 0 \
-        -c
+        -c 
+done
