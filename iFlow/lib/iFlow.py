@@ -174,15 +174,16 @@ class iFlow(nn.Module):
                 # nat_param_act,
             ) ## for self.u_dim == 60
 
+        elif self.u_dim == 5:
         # assert self.u_dim == 5
-        # self._lambda = nn.Sequential(
-        #    nn.Linear(self.u_dim, 4),
-        #    nn.ReLU(inplace=True),
-        #    nn.Linear(4, 4),
-        #    nn.ReLU(inplace=True),
-        #    nn.Linear(4, 2*self.z_dim),
-        # #    nat_param_act,
-        # ) ## for visualisation where self.u_dim == 5 
+            self._lambda = nn.Sequential(
+            nn.Linear(self.u_dim, 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(4, 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(4, 2*self.z_dim),
+            #    nat_param_act,
+        ) ## for visualisation where self.u_dim == 5 
        
         self.set_mask(self.bs)
 
@@ -207,6 +208,9 @@ class iFlow(nn.Module):
         # of shape (B, n, k).
         nat_params = self._lambda(u) 
         nat_params = nat_params.reshape(B, self.z_dim, 2) #+ 1e-5 # force the natural_params to be strictly > 0.
+
+        # Apply activation on xi and eta
+        # nat_params = self.nat_param_act(nat_params)
 
         # Chunk xi and eta from nat params. Apply activation only on xi
         nat_params_xi, nat_params_eta = torch.chunk(nat_params, chunks=2, dim=2)
