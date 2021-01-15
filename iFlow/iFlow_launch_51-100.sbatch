@@ -18,7 +18,7 @@ module load NCCL/2.5.6-CUDA-10.1.243
 module load Anaconda3/2018.12
 
 source activate iFlow-cuda
-for seed in $(seq 50 100)
+for seed in $(seq 51 100)
 do
     python main.py \
         -x 1000_40_5_5_3_$seed'_'gauss_xtanh_u_f \
