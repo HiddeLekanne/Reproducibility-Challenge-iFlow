@@ -1,7 +1,6 @@
 import torch
 from torch.nn import functional as F
 
-from lib.rq_spline_flow import utils
 import numpy as np
 
 from lib.rq_spline_flow import transforms
@@ -96,9 +95,9 @@ def rational_quadratic_spline(inputs,
     heights = cumheights[..., 1:] - cumheights[..., :-1]
 
     if inverse:
-        bin_idx = utils.searchsorted(cumheights, inputs)[..., None]
+        bin_idx = torch.searchsorted(cumwidths, inputs[..., None]) - 1
     else:
-        bin_idx = utils.searchsorted(cumwidths, inputs)[..., None]
+        bin_idx = torch.searchsorted(cumwidths, inputs[..., None]) - 1
 
     input_cumwidths = cumwidths.gather(-1, bin_idx)[..., 0]
     input_bin_widths = widths.gather(-1, bin_idx)[..., 0]
