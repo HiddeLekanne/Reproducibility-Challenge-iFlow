@@ -43,10 +43,8 @@ class CompositeTransform(Transform):
 
     @staticmethod
     def _cascade(inputs, funcs, context):
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        batch_size = inputs.shape[0]
         outputs = inputs
-        total_logabsdet = torch.zeros(batch_size).to(device)
+        total_logabsdet = torch.zeros(inputs.shape[0], dtype=inputs.dtype, device=inputs.device)
         for func in funcs:
             outputs, logabsdet = func(outputs, context)
             total_logabsdet += logabsdet
