@@ -86,7 +86,7 @@ if __name__ == '__main__':
     if not args.preload:
         dset = SyntheticDataset(args.file, 'cpu') # originally 'cpu' ????
         loader_params = {'num_workers': 1, 'pin_memory': True} if args.cuda else {} ###############
-        train_loader = DataLoader(dset, shuffle=True, batch_size=args.batch_size, drop_last=True, **loader_params)
+        train_loader = DataLoader(dset, shuffle=True, batch_size=args.batch_size, **loader_params)
         data_dim, latent_dim, aux_dim = dset.get_dims()
         args.N = len(dset)
         metadata.update(dset.get_metadata())

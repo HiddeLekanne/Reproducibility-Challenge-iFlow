@@ -210,12 +210,12 @@ class iFlow(nn.Module):
         nat_params = nat_params.reshape(B, self.z_dim, 2) #+ 1e-5 # force the natural_params to be strictly > 0.
 
         # Apply activation on xi and eta
-        # nat_params = self.nat_param_act(nat_params)
+        nat_params = self.nat_param_act(nat_params)
 
         # Chunk xi and eta from nat params. Apply activation only on xi
-        nat_params_xi, nat_params_eta = torch.chunk(nat_params, chunks=2, dim=2)
-        nat_params_xi = self.nat_param_act(nat_params_xi)
-        nat_params = torch.cat((nat_params_xi, nat_params_eta), dim=2)
+        # nat_params_xi, nat_params_eta = torch.chunk(nat_params, chunks=2, dim=2)
+        # nat_params_xi = self.nat_param_act(nat_params_xi)
+        # nat_params = torch.cat((nat_params_xi, nat_params_eta), dim=2)
 
         # Chunk xi and eta from nat params. Apply abs only on xi
         # nat_params_xi, nat_params_eta = torch.chunk(nat_params, chunks=2, dim=2)
