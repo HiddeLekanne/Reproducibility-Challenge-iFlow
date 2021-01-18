@@ -188,11 +188,8 @@ class iFlow(nn.Module):
         self.set_mask(self.bs)
 
     def set_mask(self, bs=64):
-        #col1 = torch.ones((bs, self.z_dim, 1)) * 1e-5
-        #col2 = torch.zeros((bs, self.z_dim, 1))
-        #self.mask1 = torch.cat((col1, col2), axis=2).to(self.args['device'])
-        self.mask2 = torch.ones((bs, self.z_dim, 2)).to(self.args['device'])
-        self.mask2[:, :, 0] *= -1.0
+        self.mask = torch.ones((bs, self.z_dim, 2), device=self.args['device'])
+        self.mask[:, :, 0] *= -1.0
 
     def forward(self, x, u):
         B = x.size(0)
@@ -224,7 +221,7 @@ class iFlow(nn.Module):
 
         if self.max_act_val:
             nat_params = nat_params * self.max_act_val #+ 1e-5 #self.mask1
-        nat_params = nat_params * self.mask2
+        nat_params = nat_params * self.mask
         
         return z, T, nat_params, log_jacobians
 
@@ -246,21 +243,15 @@ class FreeEnergyBound(nn.Module):
 
     def forward(self, T, nat_params, log_jacobians):
         B = T.size(0)
-        sum_of_log_jacobians = torch.sum(log_jacobians)
-        
-        sum_traces = 0.0
-        for i in range(B):
-            sum_traces += (torch.trace(nat_params[i].mm(T[i]))) # no .t(), since it is nxk-by-kxn matrix multiplication
-        avg_traces = sum_traces / B
-       
-        log_normalizer = -.5 * torch.sum(torch.log(torch.abs(nat_params[:, :, 0]))) / B
+        neg_log_det = torch.sum(torch.sum(log_jacobians).mul(-1)) / B
+
+        # Einsum takes the diagonal of each matrix in the batch
+        neg_trace = torch.einsum('bii->b', nat_params @ T).sum().mul(-1) / B
+
+        log_normalizer = -.5 * torch.sum(torch.log(torch.abs(nat_params[:, :, 0])))
         nat_params_sqr = torch.pow(nat_params[:, :, 1], 2) # of shape [B, n]
-        log_normalizer -= (torch.sum(nat_params_sqr / (4*nat_params[:, :, 0])) / B)
-
-        #loss = log_normalizer + (-sum_of_log_jacobians).mean() - avg_traces
-
-        neg_trace = avg_traces.mul(-1)
-        neg_log_det = torch.sum(sum_of_log_jacobians.mul(-1)) / B
+        log_normalizer -= torch.sum(nat_params_sqr / (4 * nat_params[:, :, 0]))
+        log_normalizer /= B
 
         return log_normalizer, neg_trace, neg_log_det
         

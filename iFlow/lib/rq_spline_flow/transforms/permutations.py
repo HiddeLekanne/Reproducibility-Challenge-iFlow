@@ -30,10 +30,8 @@ class Permutation(transforms.Transform):
         if inputs.shape[dim] != len(permutation):
             raise ValueError("Dimension {} in inputs must be of size {}."
                              .format(dim, len(permutation)))
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        batch_size = inputs.shape[0]
         outputs = torch.index_select(inputs, dim, permutation)
-        logabsdet = torch.zeros(batch_size).to(device)
+        logabsdet = torch.zeros(inputs.shape[0], dtype=inputs.dtype, device=inputs.device)
         return outputs, logabsdet
 
     def forward(self, inputs, context=None):

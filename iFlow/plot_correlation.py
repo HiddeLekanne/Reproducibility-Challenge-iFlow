@@ -118,8 +118,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # model, dset = model_and_data_from_log(args.dir)
-    # plot_latent_correlation(dset, model)
+    model, dset = model_and_data_from_log(args.dir)
+    plot_latent_correlation(dset, model)
 
     model_iFlow, dset_iFlow = model_and_data_from_log(args.dir)
     model_iVAE, dset_iVAE = model_and_data_from_log(args.dir2)
@@ -134,4 +134,3 @@ if __name__ == '__main__':
         dset = dset_iFlow
 
     create_2D_performance_plot(dset, model_iVAE, model_iFlow)
-
