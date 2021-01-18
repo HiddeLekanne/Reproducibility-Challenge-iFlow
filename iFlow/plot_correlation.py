@@ -9,7 +9,7 @@ from lib.models import iVAE
 
 from lib.utils2 import model_and_data_from_log
 
-def plot_latent_correlation(dset, model):
+def plot_latent_correlation(dset, model, n_samples):
     # Obtain source (s) and approximation (z_est)
     x = dset.x
     u = dset.u
@@ -36,11 +36,20 @@ def plot_latent_correlation(dset, model):
         p1, p2 = pairs[0][i], pairs[1][i]
         corr = cc[p1, p2].round(4)
         ax[i].set_title('corr: ' + str(abs(corr)))
-        ax[i].plot(s[:25, p1], linestyle = 'dashed')
+
+        # Sample
+        s_sampled = s[:n_samples, p1]
+        z_sampled = z_est[:n_samples, p2]
+
+        # Normalize, this way the scale and mean invariance of the metric is represented
+        s_scaled_sample = (s_sampled - np.mean(s_sampled)) / np.std(s_sampled)
+        z_scaled_sample = (z_sampled - np.mean(z_sampled)) / np.std(z_sampled)
+
+        ax[i].plot(s_scaled_sample , linestyle = 'dashed')
         if corr < 0:
-            ax[i].plot(-1 * z_est[:25, p2])
+            ax[i].plot(-1 * z_scaled_sample)
         else:
-            ax[i].plot(z_est[:25, p2])
+            ax[i].plot(z_scaled_sample)
     plt.show()
 
 if __name__ == '__main__':
@@ -48,8 +57,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('dir', metavar='dir', type=str,
                     help='experiment directory')
+    parser.add_argument('--device', metavar='device', default="cpu", type=str, help='device, either cpu or cuda')
+    parser.add_argument('--n_samples', metavar='n_samples', default=50, type=int, help="amount of samples to take")
 
     args = parser.parse_args()
-    model, dset = model_and_data_from_log(args.dir)
+    model, dset, _ = model_and_data_from_log(args.dir, args.device)
+    model.eval()
 
-    plot_latent_correlation(dset, model)
+    plot_latent_correlation(dset, model, args.n_samples)

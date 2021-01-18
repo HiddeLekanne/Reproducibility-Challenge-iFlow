@@ -4,15 +4,18 @@ from lib.data import SyntheticDataset
 from lib.models import iVAE
 from lib.iFlow import *
 
-def model_and_data_from_log(experiment_dir):
+def model_and_data_from_log(experiment_dir, device):
     # Read in metadata
     logdir = experiment_dir + '/log'
     with open(logdir + '/log.json') as f:
         metadata = json.load(f)['metadata']
-    metadata.update({"device": 'cpu'})
+    metadata.update({"device": device})
 
     # Create dataset
-    dset = SyntheticDataset(metadata['file'], 'cpu')
+    if ("scratch/" in metadata['file']):
+        dset = SyntheticDataset("data/" + metadata["file"].split("_")[6], device)
+    else:
+        dset = SyntheticDataset(metadata['file'], device)
 
     # Create model
     if metadata['i_what'] == 'iFlow':
@@ -29,7 +32,7 @@ def model_and_data_from_log(experiment_dir):
 
     # Load in last checkpoint
     last_ckpt = listdir(experiment_dir + '/ckpt/1')[-1]
-    ckpt = torch.load(experiment_dir + '/ckpt/1/' + last_ckpt)
+    ckpt = torch.load(experiment_dir + '/ckpt/1/' + last_ckpt, map_location=torch.device(device))
     model.load_state_dict(ckpt['model_state_dict'])
 
-    return model, dset
+    return model, dset, metadata
