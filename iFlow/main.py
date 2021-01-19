@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id
+    os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id if args.cuda else ""
 
     print(args)
     torch.manual_seed(args.seed)
