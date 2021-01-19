@@ -7,6 +7,7 @@ import os
 from lib.metrics import mean_corr_coef as mcc
 from lib.metrics import *
 from lib.models import iVAE
+import json
 
 from lib.utils2 import model_and_data_from_log
 
@@ -48,7 +49,12 @@ if __name__ == '__main__':
         experiments = [f.path for f in os.scandir(args.dir) if f.is_dir() ]
         X, Y = [], []
         for experiment in experiments:
-            model, dset, metadata = model_and_data_from_log(experiment, args.device)
+            try:
+                model, dset, metadata = model_and_data_from_log(experiment, args.device)
+            except json.decoder.JSONDecodeError:
+                print(experiment, "couldn't be loaded")
+                continue
+
             model.eval()
             Y.append(calculate_mcc(dset, model, args.n_samples))
             X.append(int(metadata["file"].split("_")[6]))   
@@ -58,8 +64,14 @@ if __name__ == '__main__':
         with open(args.load_file, 'rb') as f:
             X, Y = np.load(f)
 
+        # with open("mcc_second_run.npy", "rb") as f:
+        #     X_2, Y_2 = np.load(f)
+
     Y = [y for _,y in sorted(zip(X,Y))]
     X = sorted(X)
+    # Y_2 = [y for _,y in sorted(zip(X_2,Y_2))]
+    # X_2 = sorted(X_2)
     print(np.mean(Y), np.std(Y))
     plt.plot(X, Y)
+    # plt.plot(X_2, Y_2)
     plt.show()
