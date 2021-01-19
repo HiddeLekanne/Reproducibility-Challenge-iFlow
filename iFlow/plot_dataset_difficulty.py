@@ -13,7 +13,6 @@ from lib.utils2 import model_and_data_from_log
 
 # calculate the kl divergence
 def kl_divergence_gaussian(meansA, cov_matrixA, meansB, cov_matrixB):
-    # print(np.matmul(np.asmatrix(meansB - meansA), (np.linalg.inv(cov_matrixB)) ))
     return 1 / 2 * (np.trace(np.linalg.inv(cov_matrixB) @ cov_matrixA) + \
           (meansB - meansA).T @ np.linalg.inv(cov_matrixB) @ (meansB - meansA) - \
            len(meansA) + np.log((np.linalg.det(cov_matrixB) / np.linalg.det(cov_matrixA))))
@@ -109,7 +108,7 @@ if __name__ == '__main__':
                         for seg_2 in range(seg + 1, dset.u.shape[1]):
                             divergence = kl_divergence_gaussian(means[seg], np.diag(stds[seg]), means[seg_2], np.diag(stds[seg_2]))
                             scores.append(divergence)
-                    score = np.mean(scores) # / (dset.u.shape[1]**2 /2) # / dset.s.shape[1]**2
+                    score = np.min(scores) # / (dset.u.shape[1]**2 /2) # / dset.s.shape[1]**2
                     
                     KL.append(score)
                     X_2.append(int(metadata["file"].split("_")[6]))
@@ -119,21 +118,14 @@ if __name__ == '__main__':
     for i, y in enumerate(Y):
         Y_2[X_2.index(X[i])] =  y
     
-    # for i, x in enumerate(Y_2):
-    #     if int(x) != X_2[i]:
-
-    #         print( "nooo", x, X_2[i])
-
-    Y_2 = np.abs(Y_2 - np.mean(Y_2))
+    Y_2 = np.abs(Y_2)
     print(np.corrcoef(KL, Y_2))
-
-    # X = [y for _,y in sorted(zip(KL,Y))]
 
     Y_2 = [y for _,y in sorted(zip(KL,Y_2))]
     # KL = [kl for _,kl in sorted(zip(X,KL))]
     KL = sorted(KL)
 
-    # print(np.mean(Y), np.std(Y))
+    print(np.mean(Y), np.std(Y))
     plt.plot(Y_2)
     plt.plot(KL)
     plt.show()
