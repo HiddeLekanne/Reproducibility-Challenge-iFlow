@@ -72,14 +72,12 @@ if __name__ == '__main__':
 
             means, stds = calculate_guassian_parameters(dset)
 
-            score = 0
+            scores = []
             for seg in range(dset.u.shape[1]):
                 for seg_2 in range(seg + 1, dset.u.shape[1]):
                     divergence = kl_divergence_gaussian(means[seg], np.diag(stds[seg]), means[seg_2], np.diag(stds[seg_2]))
-                    score += np.min(divergence)    
-            score = score  (dset.u.shape[1]**2 /2) # / dset.s.shape[1]**2
-            KL.append(score)
-            print(score)
+                    scores.append(divergence)
+            score = np.min(scores) # / (dset.u.shape[1]**2 /2) # / dset.s.shape[1]**2
 
             model.eval()
             Y.append(calculate_mcc(dset, model, args.n_samples))
