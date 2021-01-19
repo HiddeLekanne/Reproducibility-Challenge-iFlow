@@ -4,6 +4,7 @@ from torch.nn import functional as F
 import numpy as np
 
 from lib.rq_spline_flow import transforms
+from lib.rq_spline_flow import utils
 
 DEFAULT_MIN_BIN_WIDTH = 1e-3
 DEFAULT_MIN_BIN_HEIGHT = 1e-3
@@ -95,9 +96,9 @@ def rational_quadratic_spline(inputs,
     heights = cumheights[..., 1:] - cumheights[..., :-1]
 
     if inverse:
-        bin_idx = torch.searchsorted(cumwidths, inputs[..., None]) - 1
+        bin_idx = utils.searchsorted(cumheights, inputs)[..., None]
     else:
-        bin_idx = torch.searchsorted(cumwidths, inputs[..., None]) - 1
+        bin_idx = utils.searchsorted(cumwidths, inputs)[..., None]
 
     input_cumwidths = cumwidths.gather(-1, bin_idx)[..., 0]
     input_bin_widths = widths.gather(-1, bin_idx)[..., 0]
