@@ -1,5 +1,6 @@
 import json
 from os import listdir
+
 from lib.data import SyntheticDataset
 from lib.models import iVAE
 from lib.iFlow import *

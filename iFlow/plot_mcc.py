@@ -1,14 +1,12 @@
 import argparse
-import numpy as np
-import torch
+import json
 import matplotlib.pyplot as plt
+import numpy as np
 import os
+import torch
 
 from lib.metrics import mean_corr_coef as mcc
-from lib.metrics import *
 from lib.models import iVAE
-import json
-
 from lib.utils2 import model_and_data_from_log
 
 def calculate_mcc(dset, model, n_samples):
@@ -28,50 +26,61 @@ def calculate_mcc(dset, model, n_samples):
     z_est = z_est.detach().numpy()
     return mcc(z_est, s)
 
+def plot_experiments(args):
+    if not (all(args["dirs"]) or all(args["load_files"])):
+        raise ValueError("you need to either specify all experiment dirs or all result files")
+
+    if any(args["dirs"]) and any(args["load_files"]):
+        raise ValueError("you need to either all experiment dirs or all saved results files, both are specified")
+
+    length = max(len(args["dirs"]), len(args["load_files"]))
+
+    for i in range(length):
+        if not all(args["load_files"]):
+            experiments = [f.path for f in os.scandir(args["dirs"][i]) if f.is_dir() ]
+            X, Y = [], []
+            for experiment in experiments:
+                try:
+                    model, dset, metadata = model_and_data_from_log(experiment, args["device"])
+                except json.decoder.JSONDecodeError:
+                    print(experiment, "couldn't be loaded")
+                    continue
+
+                model.eval()
+                Y.append(calculate_mcc(dset, model, args["n_samples"]))
+                X.append(int(metadata["file"].split("_")[7]))   
+            if args.get("save_files"):
+                with open(args["save_files"][i], 'wb') as f:
+                        np.save(f, [X, Y])
+
+            print(X)
+            Y = [y for _,y in sorted(zip(X,Y))]
+            X = sorted(X)
+            plt.plot(X, Y)
+        else:
+            with open(args["load_files"][i], 'rb') as f:
+                X, Y = np.load(f)
+        
+            print(X)
+            Y = [y for _,y in sorted(zip(X,Y))]
+            X = sorted(X)
+            plt.plot(X, Y)
+    plt.show()
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', metavar='dir', type=str, default=None,
-                    help='all experiments directory')
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--dirs', metavar='dirs', type=str, default=[None],  nargs="*",
+                    help='all experiments directories')
+    group.add_argument('--load_files', default=[None], type=str, help="files from which to load the results instead of recalculating", nargs="*")
+
     parser.add_argument('--device', metavar='device', default="cpu", type=str, help='device, either cpu or cuda')
     parser.add_argument('--n_samples', metavar='n_samples', default=50, type=int, help="amount of samples to take")
-    parser.add_argument('--save_file', default='mcc.npy', type=str, help="file where the results are saved")
-    parser.add_argument('--load_file', default=None, type=str, help="file from which to load the results instead of recalculating")
+    parser.add_argument('--save_file', default=[], type=str, help="file where the results are saved")
 
     args = parser.parse_args()
+    args = vars(args.Namespace())
 
-    if not (args.dir or args.load_file):
-        raise ValueError("you need to either specify a experiments dir or a results file")
+    plot_experiments(args)
 
-
-    if not args.load_file:
-        experiments = [f.path for f in os.scandir(args.dir) if f.is_dir() ]
-        X, Y = [], []
-        for experiment in experiments:
-            try:
-                model, dset, metadata = model_and_data_from_log(experiment, args.device)
-            except json.decoder.JSONDecodeError:
-                print(experiment, "couldn't be loaded")
-                continue
-
-            model.eval()
-            Y.append(calculate_mcc(dset, model, args.n_samples))
-            X.append(int(metadata["file"].split("_")[6]))   
-        with open(args.save_file, 'wb') as f:
-                np.save(f, [X, Y])
-    else:
-        with open(args.load_file, 'rb') as f:
-            X, Y = np.load(f)
-
-        # with open("mcc_second_run.npy", "rb") as f:
-        #     X_2, Y_2 = np.load(f)
-
-    Y = [y for _,y in sorted(zip(X,Y))]
-    X = sorted(X)
-    # Y_2 = [y for _,y in sorted(zip(X_2,Y_2))]
-    # X_2 = sorted(X_2)
-    print(np.mean(Y), np.std(Y))
-    plt.plot(X, Y)
-    # plt.plot(X_2, Y_2)
-    plt.show()

@@ -19,18 +19,14 @@ import os.path as osp
 import pdb
 
 import datetime
-now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
-EXPERIMENT_FOLDER = osp.join('experiments/', now)
-LOG_FOLDER = osp.join(EXPERIMENT_FOLDER, 'log/')
-TENSORBOARD_RUN_FOLDER = osp.join(EXPERIMENT_FOLDER, 'runs/')
-TORCH_CHECKPOINT_FOLDER = osp.join(EXPERIMENT_FOLDER, 'ckpt/')
-Z_EST_FOLDER = osp.join(EXPERIMENT_FOLDER, 'z_est/')
+
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file', default=None, help='path to data file in .npz format. (default None)')
+    parser.add_argument('-exp', '--experiments-folder', default='experiments', help='path to the folder where all the logging is done. (default "experiments")')
     parser.add_argument('-x', '--data-args', type=str, default=None,
                         help='argument string to generate a dataset. '
                              'This should be of the form nps_ns_dl_dd_nl_s_p_a_u_n. '
@@ -65,6 +61,14 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+
+    EXPERIMENT_FOLDER = osp.join(args.experiments_folder + '/', now)
+    LOG_FOLDER = osp.join(EXPERIMENT_FOLDER, 'log/')
+    TENSORBOARD_RUN_FOLDER = osp.join(EXPERIMENT_FOLDER, 'runs/')
+    TORCH_CHECKPOINT_FOLDER = osp.join(EXPERIMENT_FOLDER, 'ckpt/')
+    Z_EST_FOLDER = osp.join(EXPERIMENT_FOLDER, 'z_est/')
+
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id if args.cuda else ""
 
     print(args)
@@ -72,9 +76,10 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
 
     st = time.time()
-
+    # extract seed from argstring used in generating the dataset
+    seed_2 = args.data_args.split('_')[6]
     if args.file is None:
-        args.file = create_if_not_exist_dataset(root='data/{}/'.format(args.seed), arg_str=args.data_args)
+        args.file = create_if_not_exist_dataset(root='data/{}_{}/'.format(args.seed, seed_2), arg_str=args.data_args)
     
     metadata = vars(args).copy()
     del metadata['no_log'], metadata['data_args']
@@ -86,7 +91,7 @@ if __name__ == '__main__':
     if not args.preload:
         dset = SyntheticDataset(args.file, 'cpu') # originally 'cpu' ????
         loader_params = {'num_workers': 1, 'pin_memory': True} if args.cuda else {} ###############
-        train_loader = DataLoader(dset, shuffle=True, batch_size=args.batch_size, **loader_params)
+        train_loader = DataLoader(dset, drop_last=True, shuffle=True, batch_size=args.batch_size, **loader_params)
         data_dim, latent_dim, aux_dim = dset.get_dims()
         args.N = len(dset)
         metadata.update(dset.get_metadata())
@@ -133,7 +138,6 @@ if __name__ == '__main__':
 
     tensorboard_run_name = TENSORBOARD_RUN_FOLDER + 'exp' + str(exp_id) + '_'.join(
         map(str, ['', args.batch_size, args.max_iter, args.lr, args.hidden_dim, args.depth, args.anneal]))
-    # 'runs/exp1_64_12500_0.001_50_3_False'
     
     writer = SummaryWriter(logdir=tensorboard_run_name)
 
@@ -197,7 +201,7 @@ if __name__ == '__main__':
                     writer.add_scalar('data/neg_log_det', logger.get_last('neg_log_det'), acc_itr)
 
                 scheduler.step(logger.get_last('loss'))
-                #scheduler.step(-perf)
+                # scheduler.step(-perf)
 
             if acc_itr % int(args.max_iter / 5) == 0 and not args.no_log:
                 checkpoint(TORCH_CHECKPOINT_FOLDER, \
@@ -207,24 +211,6 @@ if __name__ == '__main__':
                            optimizer, \
                            logger.get_last('loss'), \
                            logger.get_last('perf'))
-            
-            """
-            if args.i_what == 'iVAE':
-                print('----epoch {} iter {}:\tloss: {:.4f};\tperf: {:.4f}'.format(\
-                                                                   epoch, \
-                                                                   itr, \
-                                                                   loss.item(), \
-                                                                   perf))
-            elif args.i_what == 'iFlow':
-                print('----epoch {} iter {}:\tloss: {:.4f} (l1: {:.4f}, l2: {:.4f}, l3: {:.4f});\tperf: {:.4f}'.format(\
-                                                                    epoch, \
-                                                                    itr, \
-                                                                    loss.item(), \
-                                                                    log_normalizer.item(), \
-                                                                    neg_trace.item(), \
-                                                                    neg_log_det.item(), \
-                                                                    perf))
-            """
         
         epoch += 1
         eet = time.time()

@@ -1,4 +1,5 @@
 import argparse
+import json
 import numpy as np
 import torch
 import matplotlib.pyplot as plt
@@ -7,8 +8,6 @@ import os
 from lib.metrics import mean_corr_coef as mcc
 from lib.metrics import *
 from lib.models import iVAE
-import json
-
 from lib.utils2 import model_and_data_from_log
 
 # calculate the kl divergence
