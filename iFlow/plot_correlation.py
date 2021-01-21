@@ -9,7 +9,7 @@ from lib.models import iVAE
 
 from lib.utils2 import model_and_data_from_log
 
-def plot_latent_correlation(dset, model, n_samples):
+def plot_latent_correlation(dset, model, n_samples, sample_offset):
     # Obtain source (s) and approximation (z_est)
     x = dset.x
     u = dset.u
@@ -17,8 +17,6 @@ def plot_latent_correlation(dset, model, n_samples):
     if isinstance(model, iVAE):
         _, z_est = model.elbo(x, u)
     else:
-        import operator
-        from functools import reduce
         total_num_examples = x.shape[0]
         model.set_mask(total_num_examples)
         z_est, _ = model.inference(x, u)
@@ -31,15 +29,16 @@ def plot_latent_correlation(dset, model, n_samples):
     pairs = linear_sum_assignment(-1 * abs(cc))
 
     # Create plots of source and approximation
-    fig, ax = plt.subplots(1, z_est.shape[1], figsize = (2.5*d, 2.5))
+    fig, ax = plt.subplots(1, z_est.shape[1], figsize = (2*d, 2.5), constrained_layout=True)
     for i in range(z_est.shape[1]):
         p1, p2 = pairs[0][i], pairs[1][i]
         corr = cc[p1, p2].round(4)
         ax[i].set_title('corr: ' + str(abs(corr)))
+        ax[i].set_ylim([-3, 3])
 
         # Sample
-        s_sampled = s[:n_samples, p1]
-        z_sampled = z_est[:n_samples, p2]
+        s_sampled = s[sample_offset:sample_offset+n_samples, p1]
+        z_sampled = z_est[sample_offset:sample_offset+n_samples, p2]
 
         # Normalize, this way the scale and mean invariance of the metric is represented
         s_scaled_sample = (s_sampled - np.mean(s_sampled)) / np.std(s_sampled)
@@ -50,6 +49,11 @@ def plot_latent_correlation(dset, model, n_samples):
             ax[i].plot(-1 * z_scaled_sample)
         else:
             ax[i].plot(z_scaled_sample)
+
+    if isinstance(model, iVAE):
+        fig.suptitle('iVAE')
+    else:
+        fig.suptitle('iFlow')
     plt.show()
 
 if __name__ == '__main__':
@@ -59,9 +63,11 @@ if __name__ == '__main__':
                     help='experiment directory')
     parser.add_argument('--device', metavar='device', default="cpu", type=str, help='device, either cpu or cuda')
     parser.add_argument('--n_samples', metavar='n_samples', default=50, type=int, help="amount of samples to take")
+    parser.add_argument('--sample_offset', metavar='sample_offset', default=0, type=int, help="start position of displayed samples")
+
 
     args = parser.parse_args()
     model, dset, _ = model_and_data_from_log(args.dir, args.device)
     model.eval()
 
-    plot_latent_correlation(dset, model, args.n_samples)
+    plot_latent_correlation(dset, model, args.n_samples, args.sample_offset)
