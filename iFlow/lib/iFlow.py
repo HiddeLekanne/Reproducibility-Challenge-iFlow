@@ -7,14 +7,15 @@ from torch import nn
 from torch.nn import functional as F
 
 import pdb
+from nflows import transforms
+from nflows import nn as nn_
+from nflows import utils as utils_rqsf
 
-#THIS IS SUPPOSEDLY TO BE A WRONG IMPLEMENTATION SINCE SOFTPLUS IS EXERTED ON ETA!!!
+# THIS IS SUPPOSEDLY TO BE A WRONG IMPLEMENTATION SINCE SOFTPLUS IS EXERTED ON ETA!!!
 
 ################# iFlow ####################
 import lib
-from lib.rq_spline_flow import utils as utils_rqsf
-from lib.rq_spline_flow import transforms
-from lib.rq_spline_flow import nn_ 
+
 
 def create_base_transform(i, base_transform_type, dim, num_bins):
     if base_transform_type == 'affine':
@@ -22,7 +23,7 @@ def create_base_transform(i, base_transform_type, dim, num_bins):
             mask=utils_rqsf.create_alternating_binary_mask(
                         features=dim, 
                         even=(i % 2 == 0)),
-                        transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
+                        transform_net_create_fn=lambda in_features, out_features: nn_.nets.ResidualNet(
                                                                            in_features=in_features,
                                                                            out_features=out_features,
                                                                            hidden_features=32,
@@ -35,7 +36,7 @@ def create_base_transform(i, base_transform_type, dim, num_bins):
             mask=utils_rqsf.create_alternating_binary_mask(
                         features=dim, 
                         even=(i % 2 == 0)),
-                        transform_net_create_fn=lambda in_features, out_features: nn_.ResidualNet(
+                        transform_net_create_fn=lambda in_features, out_features: nn_.nets.ResidualNet(
                                                                            in_features=in_features,
                                                                            out_features=out_features,
                                                                            hidden_features=32,
@@ -97,8 +98,25 @@ def create_transform(dim, num_flow_steps, num_bins):
 
 
 from lib.planar_flow import *
-from lib.rq_spline_flow import *
-from lib.rq_spline_flow.rq_spline_flow import *
+from nflows.flows import Flow
+
+
+class SplineFlow(Flow):
+    """Base class for all flow objects."""
+
+    def __init__(self, transform):
+        """Constructor.
+
+        Args:
+            transform: A `Transform` object, it transforms data into noise.
+        """
+        super(SplineFlow, self).__init__(transform, None)
+        self._transform = transform
+
+    def forward(self, inputs, context=None):
+        noise, logabsdet = self._transform(inputs, context=context)
+        return noise, logabsdet
+
 
 class iFlow(nn.Module):
     def __init__(self, args):
@@ -109,7 +127,8 @@ class iFlow(nn.Module):
         assert args['latent_dim'] == args['data_dim']
         self.x_dim = self.z_dim = args['latent_dim']
         self.u_dim = args['aux_dim']
-        self.k = 2 # number of orders of sufficient statistics
+        self.k = 2 # number of orders of sufficient statistics\
+        self.device = args['device']
 
         flow_type = args['flow_type']
         
@@ -186,7 +205,7 @@ class iFlow(nn.Module):
         self.set_mask(self.bs)
 
     def set_mask(self, bs=64):
-        self.mask = torch.ones((bs, self.z_dim, 2), device=self.args['device'])
+        self.mask = torch.ones((bs, self.z_dim, 2), device=self.device)
         self.mask[:, :, 0] *= -1.0
 
     def forward(self, x, u):
