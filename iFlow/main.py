@@ -77,9 +77,8 @@ if __name__ == '__main__':
 
     st = time.time()
     # extract seed from argstring used in generating the dataset
-    seed_2 = args.data_args.split('_')[6]
     if args.file is None:
-        args.file = create_if_not_exist_dataset(root='data/{}_{}/'.format(args.seed, seed_2), arg_str=args.data_args)
+        args.file = create_if_not_exist_dataset(root='data/{}/'.format(args.seed), arg_str=args.data_args)
     
     metadata = vars(args).copy()
     del metadata['no_log'], metadata['data_args']

@@ -109,7 +109,6 @@ if __name__ == '__main__':
                     
                     KL.append(score)
                     X_2.append(int(metadata["file"].split("_")[6]))
-                    # break
 
     Y_2 = [0] * 100
     for i, y in enumerate(Y):
