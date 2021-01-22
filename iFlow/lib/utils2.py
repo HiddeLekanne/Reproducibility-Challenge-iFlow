@@ -30,8 +30,11 @@ def model_and_data_from_log(experiment_dir, device):
             hidden_dim=int(metadata['hidden_dim']), \
             anneal=False) # False
 
-    # Load in last checkpoint
-    last_ckpt = listdir(experiment_dir + '/ckpt/1')[-1]
+    # Find last checkpoint
+    ckpts = listdir(experiment_dir + '/ckpt/1')
+    ckpt_ints = [int(c.strip('.pth').split('_')[-1]) for c in ckpts]
+    last_ckpt = ckpts[np.argmax(ckpt_ints)]
+    # Load in checkpoint
     ckpt = torch.load(experiment_dir + '/ckpt/1/' + last_ckpt, map_location=torch.device(device))
     model.load_state_dict(ckpt['model_state_dict'])
 
