@@ -6,7 +6,9 @@ import os
 import torch
 
 from lib.metrics import mean_corr_coef as mcc
+from lib.metrics import * 
 from lib.models import iVAE
+from lib.iFlow import iFlow
 from lib.utils2 import model_and_data_from_log
 
 class Experiment_folder:
@@ -26,37 +28,51 @@ class Experiment_folder:
          
     def get_ranked_list(self, attribute):
         if attribute == "final_performance":
-            return sorted(self.experiments.values(), key=lambda experiment: int(experiment[attribute]))
+            # i = iter(self.experiments.items())
+            # experiment = next(i)
+            # print(experiment[1]["final_performance"])
+            return sorted(self.experiments.items(), key=lambda experiment: int(experiment[1][attribute]))
         elif attribute == "seed":
-            return sorted(self.experiments.values(), key=lambda experiment: int(experiment["file"].split("_")[6]))
+            return sorted(self.experiments.items(), key=lambda experiment: int(experiment[1]["file"].split("_")[6]))
         else:
             raise NotImplementedError("the attribute: " + str(attribute) +  " has not been implemented.")
     
     def get_final_performance(self):
-        for experiment in self.experiments.keys():
-            with open(experiment + '/log/log.json') as f:
+        for experiment_path in self.experiments.keys():
+            with open(experiment_path + '/log/log.json') as f:
                 json_file = json.load(f)
 
             # if already computed
             if json_file["metadata"].get("final_performance"):
-                if not self.experiments[experiment].get("final_performance"):
-                    self.experiments[experiment]["final_performance"] = json_file["metadata"]["final_performance"]
+                if not self.experiments[experiment_path].get("final_performance"):
+                    self.experiments[experiment_path]["final_performance"] = json_file["metadata"]["final_performance"]
                 continue
 
             try:
-                model, dset, _ = model_and_data_from_log(experiment, self.device)
+                model, dset, _ = model_and_data_from_log(experiment_path, self.device)
             except json.decoder.JSONDecodeError:
-                print(experiment, "couldn't be loaded")
+                print(experiment_path, "couldn't be loaded")
                 continue
 
             model.eval()
             final_performance = calculate_mcc(dset, model)
 
-            with open(experiment + '/log/log.json', "r+") as f:
+            with open(experiment_path + '/log/log.json', "r+") as f:
                 json_file = json.load(f)
                 json_file["metadata"]["final_performance"] = final_performance
                 f.seek(0)
                 json.dump(json_file, f)
+
+    def get_model_from_experiment(self, experiment):
+        path = self.seed2path[int(experiment[1]["file"].split("_")[6])]
+        return self.get_model_from_path(path)
+
+    def get_model_from_path(self, experiment_path):
+        try:
+            model, dset, _ = model_and_data_from_log(experiment_path, self.device)
+        except json.decoder.JSONDecodeError:
+            print(experiment_path, "couldn't be loaded")
+        return model, dset
 
     def __len___(self):
         return len(self.experiments)
@@ -89,7 +105,7 @@ def calculate_mcc(dset, model):
 def plot_mcc(experiment_folders):
     for experiment_folder in experiment_folders:
         Y = []
-        for experiment in experiment_folder.get_ranked_list("seed"):
+        for path, experiment in experiment_folder.get_ranked_list("seed"):
             Y.append(experiment["final_performance"])
         X = list(range(1, len(Y) + 1))
         plt.plot(X, Y)    
@@ -112,6 +128,108 @@ def create_2D_performance_sub_plot(x, labels, ax, cmap, title="", mcc=None):
     ax.set_title(label=title)
     ax.set_xticks([])
     ax.set_yticks([])
+
+
+def plot_latent_correlation(dset, model, n_samples, sample_offset):
+    # Obtain source (s) and approximation (z_est)
+    x = dset.x
+    u = dset.u
+    s = dset.s.detach().numpy()
+    z_est = model_predict(x, u, model)
+
+    # Find corresponding dimensions between s and z_dim
+    d = x.shape[1]
+    cc = np.corrcoef(s, z_est, rowvar=False)[:d, d:]
+    pairs = linear_sum_assignment(-1 * abs(cc))
+
+    # Create plots of source and approximation
+    fig, ax = plt.subplots(1, z_est.shape[1], figsize = (2*d, 2.5), constrained_layout=True)
+    for i in range(z_est.shape[1]):
+        p1, p2 = pairs[0][i], pairs[1][i]
+        corr = cc[p1, p2].round(4)
+        ax[i].set_title('corr: ' + str(abs(corr)))
+        ax[i].set_ylim([-3, 3])
+
+        # Sample
+        s_sampled = s[sample_offset:sample_offset+n_samples, p1]
+        z_sampled = z_est[sample_offset:sample_offset+n_samples, p2]
+
+        # Normalize, this way the scale and mean invariance of the metric is represented
+        s_scaled_sample = (s_sampled - np.mean(s_sampled)) / np.std(s_sampled)
+        z_scaled_sample = (z_sampled - np.mean(z_sampled)) / np.std(z_sampled)
+
+        ax[i].plot(s_scaled_sample , linestyle = 'dashed')
+        if corr < 0:
+            ax[i].plot(-1 * z_scaled_sample)
+        else:
+            ax[i].plot(z_scaled_sample)
+
+    if isinstance(model, iVAE):
+        fig.suptitle('iVAE')
+    else:
+        fig.suptitle('iFlow')
+    plt.show()
+
+
+def create_2D_performance_plot(dset, model_iVAE, model_iFlow):
+    # Assert correct model type to assure same layout
+    assert isinstance(model_iVAE, iVAE)
+    assert isinstance(model_iFlow, iFlow)
+
+    # Unpack data set
+    x = dset.x
+    u = dset.u
+    s = dset.s.detach().numpy()
+
+    # Obtain approximations
+    z_est_iVAE = model_predict(x, u, model_iVAE)
+    z_est_iFlow = model_predict(x, u, model_iFlow)
+
+    # Find corresponding dimensions between s with iVAE/iFlow estimations
+    z_est_iVAE = align_dimensions(s, z_est_iVAE)
+    z_est_iFlow = align_dimensions(s, z_est_iFlow)
+
+    # Define colormap
+    N = len(u[0])
+    cmap = plt.cm.jet
+    cmaplist = [cmap(i) for i in range(cmap.N)]
+    cmap = cmap.from_list('Custom cmap', cmaplist, cmap.N)
+
+    # Create subplots for source, observation and iFlow and iVAE estimations
+    fig, axs = plt.subplots(1, 4)
+    create_2D_performance_sub_plot(s, u, ax=axs[0], cmap=cmap, title="Original sources")
+    create_2D_performance_sub_plot(x, u, ax=axs[1], cmap=cmap, title="Observations")
+    create_2D_performance_sub_plot(z_est_iFlow, u, ax=axs[2], cmap=cmap, title="iFlow", mcc=mcc(s, z_est_iFlow))
+    create_2D_performance_sub_plot(z_est_iVAE, u, ax=axs[3], cmap=cmap, title="iVAE", mcc=mcc(s, z_est_iVAE))
+    plt.show()
+
+# if __name__ == '__main__':
+
+#     parser = argparse.ArgumentParser()
+#     parser.add_argument('experiment_dir', metavar='experiment_dir', type=str, help='experiment directory')
+#     parser.add_argument('--device', metavar='device', default="cpu", type=str, help='device, either cpu or cuda')
+#     parser.add_argument('--n_samples', metavar='n_samples', default=50, type=int, help="amount of samples to take")
+#     parser.add_argument('--sample_offset', metavar='sample_offset', default=0, type=int, help="start position of displayed samples")
+
+#     args = parser.parse_args()
+#     model, dset, _ = model_and_data_from_log(args.dir, args.device)
+#     model.eval()
+#     plot_latent_correlation(dset, model, args.n_samples, args.sample_offset)
+
+    # model_iFlow, dset_iFlow = model_and_data_from_log(args.dir)
+    # model_iVAE, dset_iVAE = model_and_data_from_log(args.dir2)
+
+    # if args.seed:
+    #     print(f"Creating new data set with seed {args.seed}")
+    #     arg_str = f"1000_5_2_2_3_{args.seed}_gauss_xtanh_u_f"
+    #     path_to_dset = create_if_not_exist_dataset(arg_str=arg_str)
+    #     dset = SyntheticDataset(path_to_dset)
+    # else:
+    #     print("Using data set on which models were trained")
+    #     dset = dset_iFlow
+
+    # create_2D_performance_plot(dset, model_iVAE, model_iFlow)
+
 
 # if __name__ == '__main__':
 
