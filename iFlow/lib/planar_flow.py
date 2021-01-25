@@ -3,6 +3,7 @@ from torch import nn
 from torch.nn import functional as F
 from torch.autograd import Variable
 
+
 def safe_log(z):
     return torch.log(z+1e-7)
 
@@ -28,8 +29,7 @@ class NormalizingFlow(nn.Module):
             z = transform(z)
 
         zk = z
-
-        return zk, log_jacobians
+        return zk, torch.cat(log_jacobians)
 
 
 class PlanarFlow(nn.Module):
