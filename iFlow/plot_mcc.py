@@ -103,6 +103,16 @@ def align_dimensions(s, z):
     z[:, pairs[0]] = z[:, pairs[1]]
     return z
 
+
+def create_2D_performance_sub_plot(x, labels, ax, cmap, title="", mcc=None):
+    if mcc:
+        title += f' (MCC: {mcc:.2f})'
+    
+    ax.scatter(x[:, 0], x[:, 1], c=torch.argmax(labels, dim=1), cmap=cmap, alpha=0.9, s=3)
+    ax.set_title(label=title)
+    ax.set_xticks([])
+    ax.set_yticks([])
+
 # if __name__ == '__main__':
 
 #     parser = argparse.ArgumentParser()
