@@ -4,5 +4,6 @@ dependencies:
   - numpy
   - pytorch
   - scipy
+  - matplotlib
   - pip:
     - tensorboardX
