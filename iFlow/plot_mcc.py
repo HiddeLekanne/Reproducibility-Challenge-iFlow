@@ -16,6 +16,7 @@ class Experiment_folder:
     def __init__(self, main_dir, device):
         experiment_paths = set([f.path for f in os.scandir(main_dir) if f.is_dir()])
         self.experiments, self.path2seed, self.seed2path = {}, {}, {}
+        self.name = os.path.basename(main_dir).split("_")[0]
         self.device = device
         for path in experiment_paths:
             with open(path + '/log/log.json') as f:
@@ -23,29 +24,29 @@ class Experiment_folder:
                 self.experiments[path] = metadata
                 self.path2seed[path] = int(metadata["file"].split("_")[6])
                 self.seed2path[int(metadata["file"].split("_")[6])] = path
-        self.get_final_performance()
+        self.get_final_attribute("final_performance")
+        self.get_final_attribute("final_loss")
 
          
     def get_ranked_list(self, attribute):
-        if attribute == "final_performance":
-            # i = iter(self.experiments.items())
-            # experiment = next(i)
-            # print(experiment[1]["final_performance"])
+        if attribute == "final_performance" or attribute == "final_loss":
             return sorted(self.experiments.items(), key=lambda experiment: int(experiment[1][attribute]))
         elif attribute == "seed":
             return sorted(self.experiments.items(), key=lambda experiment: int(experiment[1]["file"].split("_")[6]))
-        else:
+        else :
             raise NotImplementedError("the attribute: " + str(attribute) +  " has not been implemented.")
     
-    def get_final_performance(self):
+    def get_final_attribute(self, attribute):
+        if not (attribute == "final_performance" or attribute == "final_loss"):
+            raise NotImplementedError("the attribute: " + str(attribute) +  " has not been implemented.")
         for experiment_path in self.experiments.keys():
             with open(experiment_path + '/log/log.json') as f:
                 json_file = json.load(f)
 
             # if already computed
-            if json_file["metadata"].get("final_performance"):
-                if not self.experiments[experiment_path].get("final_performance"):
-                    self.experiments[experiment_path]["final_performance"] = json_file["metadata"]["final_performance"]
+            if json_file["metadata"].get(attribute):
+                if not self.experiments[experiment_path].get(attribute):
+                    self.experiments[experiment_path][attribute] = json_file["metadata"][attribute]
                 continue
 
             try:
@@ -55,11 +56,16 @@ class Experiment_folder:
                 continue
 
             model.eval()
-            final_performance = calculate_mcc(dset, model)
+            if attribute == "final_performance":
+                attribute_value = calculate_mcc(dset, model)
+            elif attribute == "final_loss":    
+                x = dset.x
+                u = dset.u
+                attribute_value = float(model_loss(x, u, model).detach().numpy())
 
             with open(experiment_path + '/log/log.json', "r+") as f:
                 json_file = json.load(f)
-                json_file["metadata"]["final_performance"] = final_performance
+                json_file["metadata"][attribute] = attribute_value
                 f.seek(0)
                 json.dump(json_file, f)
 
@@ -74,9 +80,18 @@ class Experiment_folder:
             print(experiment_path, "couldn't be loaded")
         return model, dset
 
-    def __len___(self):
+    def __len__(self):
         return len(self.experiments)
 
+
+def model_loss(x, u, model):
+    if isinstance(model, iVAE):
+        loss, _ = model.elbo(x, u)
+        loss = loss.mul(-1)
+    else:
+        (log_normalizer, neg_trace, neg_log_det), z_est = model.neg_log_likelihood(x, u)
+        loss = log_normalizer + neg_trace + neg_log_det
+    return loss
 
 
 def model_predict(x, u, model):
@@ -87,14 +102,13 @@ def model_predict(x, u, model):
         from functools import reduce
         total_num_examples = x.shape[0]
         model.set_mask(total_num_examples)
-        z_est, _ = model.inference(x, u)
+        z_est, loss = model.inference(x, u)
 
     z_est = z_est.detach().numpy()
     return z_est
 
 
 def calculate_mcc(dset, model):
-    ""
     x = dset.x
     u = dset.u
     s = dset.s.detach().numpy()
@@ -102,15 +116,24 @@ def calculate_mcc(dset, model):
     return mcc(z_est, s)
 
 
-def plot_mcc(experiment_folders):
+def plot_attribute(experiment_folders, attribute, names=[]):
+    fig = plt.figure()
+    ax = fig.add_axes([0,0,1,1])
+    YS = []
     for experiment_folder in experiment_folders:
         Y = []
         for path, experiment in experiment_folder.get_ranked_list("seed"):
-            Y.append(experiment["final_performance"])
+            if attribute == "final_loss":
+                Y.append(-experiment[attribute])
+            else:
+                Y.append(experiment[attribute])
+        YS.append(Y)
         X = list(range(1, len(Y) + 1))
-        plt.plot(X, Y)    
-    plt.show()
 
+        ax.plot(X, Y, label="{}: {mean:.3f} ({std:.3f})".format(experiment_folder.name, mean=np.mean(Y), std=np.std(Y)))
+    print(np.corrcoef(YS[0], YS[1], rowvar=False))
+    ax.legend()
+    return ax
 
 def align_dimensions(s, z):
     d = z.shape[1]
@@ -118,7 +141,6 @@ def align_dimensions(s, z):
     pairs = linear_sum_assignment(-1 * abs(cc))
     z[:, pairs[0]] = z[:, pairs[1]]
     return z
-
 
 def create_2D_performance_sub_plot(x, labels, ax, cmap, title="", mcc=None):
     if mcc:

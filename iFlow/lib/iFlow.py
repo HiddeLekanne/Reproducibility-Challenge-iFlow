@@ -221,7 +221,11 @@ class iFlow(nn.Module):
 
         if self.max_act_val:
             nat_params = nat_params * self.max_act_val #+ 1e-5 #self.mask1
-        nat_params = nat_params * self.mask
+        try:
+            nat_params = nat_params * self.mask
+        except:
+            self.set_mask(nat_params.shape[0])
+            nat_params = nat_params * self.mask
         
         return z, T, nat_params, log_jacobians
 
