@@ -62,6 +62,8 @@ if __name__ == '__main__':
     parser.add_argument('-fl', '--flow_length', type=int, default=10)
     parser.add_argument('-lr_df', '--lr_drop_factor', type=float, default=0.5)
     parser.add_argument('-lr_pn', '--lr_patience', type=int, default=10)
+    parser.add_argument('-tm', '--trainable_mean', action='store_true', default=False,
+                        help="Use an MLP for the iVAE prior, instead of fixing it at 0.")
 
     args = parser.parse_args()
 
@@ -106,22 +108,23 @@ if __name__ == '__main__':
     # define model and optimizer
     model = None
     if args.i_what == 'iVAE':
-        model = iVAE(latent_dim, \
-                 data_dim, \
-                 aux_dim, \
-                 n_layers=args.depth, \
-                 activation='lrelu', \
-                 device=device, \
-                 hidden_dim=args.hidden_dim, \
-                 anneal=args.anneal) # False
+        model = iVAE(latent_dim,
+                     data_dim,
+                     aux_dim,
+                     n_layers=args.depth,
+                     activation='lrelu',
+                     device=device,
+                     hidden_dim=args.hidden_dim,
+                     trainable_prior_mean=args.trainable_mean
+                 )
     elif args.i_what == 'iFlow':
         metadata.update({"device": device})
         model = iFlow(args=metadata).to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, \
-                                                     factor=args.lr_drop_factor, \
-                                                     patience=args.lr_patience, \
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                     factor=args.lr_drop_factor,
+                                                     patience=args.lr_patience,
                                                      verbose=True) # factor=0.1 and patience=4
 
     ste = time.time()
