@@ -2,3 +2,7 @@ data*/
 *.pyc
 __pycache__/
 experiments*/
+*experiment/
+
+
+.ipynb_checkpoints/
