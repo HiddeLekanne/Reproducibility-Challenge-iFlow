@@ -55,16 +55,20 @@ if __name__ == '__main__':
     parser.add_argument('-q', '--log-freq', type=int, default=25, help='logging frequency (default 25).')
 
     parser.add_argument('-i', '--i-what', type=str, default="iFlow")
-    parser.add_argument('-ft', '--flow_type', type=str, default="PlanarFlow")
-    parser.add_argument('-nb', '--num_bins', type=int, default=8)
-    parser.add_argument('-npa', '--nat_param_act', type=str, default="Sigmoid")
-    parser.add_argument('-u', '--gpu_id', type=str, default='0')
-    parser.add_argument('-fl', '--flow_length', type=int, default=10)
-    parser.add_argument('-lr_df', '--lr_drop_factor', type=float, default=0.5)
-    parser.add_argument('-lr_pn', '--lr_patience', type=int, default=10)
-    parser.add_argument('-tm', '--trainable_mean', action='store_true', default=False,
+    parser.add_argument('-ft', '--flow-type', type=str, default="PlanarFlow")
+    parser.add_argument('-nb', '--num-bins', type=int, default=8)
+    parser.add_argument('-npa', '--nat-param_act', type=str, default="Sigmoid")
+    parser.add_argument('-u', '--gpu-id', type=str, default='0')
+    parser.add_argument('-fl', '--flow-length', type=int, default=10)
+    parser.add_argument('-lr_df', '--lr-drop-factor', type=float, default=0.5)
+    parser.add_argument('-lr_pn', '--lr-patience', type=int, default=10)
+    parser.add_argument('-tm', '--trainable-mean', action='store_true', default=False,
                         help="Use an MLP for the iVAE prior, instead of fixing it at 0.")
-
+    parser.add_argument('-act', '--activation', type=str, default='lrelu',
+                        help='Activation function used in the MLPs in iVAE.')
+    parser.add_argument('-w', '--weight-decay', type=float, default=0, help="Adam weight decay.")
+    parser.add_argument('-eps', '--epsilon', type=float, default=1e-8, help="Adam epsilon.")
+    parser.add_argument('-ams', '--amsgrad', action='store_true', default=False, help="Use amsgrad changes for Adam.")
     args = parser.parse_args()
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id if args.cuda else ""
@@ -112,7 +116,7 @@ if __name__ == '__main__':
                      data_dim,
                      aux_dim,
                      n_layers=args.depth,
-                     activation='lrelu',
+                     activation=args.activation.lower(),
                      device=device,
                      hidden_dim=args.hidden_dim,
                      trainable_prior_mean=args.trainable_mean
@@ -121,7 +125,8 @@ if __name__ == '__main__':
         metadata.update({"device": device})
         model = iFlow(args=metadata).to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr,
+                           weight_decay=args.weight_decay, eps=args.epsilon, amsgrad=args.amsgrad)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                                                      factor=args.lr_drop_factor,
                                                      patience=args.lr_patience,
