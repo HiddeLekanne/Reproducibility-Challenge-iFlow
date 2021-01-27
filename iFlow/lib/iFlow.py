@@ -163,6 +163,7 @@ class iFlow(nn.Module):
             assert act_str.startswith("Sigmoidx")
             nat_param_act = nn.Sigmoid()
             self.max_act_val = float(act_str.split("x")[-1])
+        self.nat_param_act = nat_param_act
         
         if self.u_dim == 40:
             self._lambda = nn.Sequential(
@@ -171,7 +172,7 @@ class iFlow(nn.Module):
                 nn.Linear(30, 20),
                 nn.ReLU(inplace=True),
                 nn.Linear(20, 2*self.z_dim),
-                nat_param_act,
+                # nat_param_act,
             ) ## for self.u_dim == 40
         elif self.u_dim == 3:
             self._lambda = nn.Sequential(
@@ -180,7 +181,7 @@ class iFlow(nn.Module):
                 nn.Linear(6, 5),
                 nn.ReLU(inplace=True),
                 nn.Linear(5, 2*self.z_dim),
-                nat_param_act,
+                # nat_param_act,
             ) ## for self.u_dim == 60
         elif self.u_dim == 60:
             self._lambda = nn.Sequential(
@@ -189,18 +190,19 @@ class iFlow(nn.Module):
                 nn.Linear(45, 25),
                 nn.ReLU(inplace=True),
                 nn.Linear(25, 2*self.z_dim),
-                nat_param_act,
+                # nat_param_act,
             ) ## for self.u_dim == 60
 
-        #assert self.u_dim == 5
-        #self._lambda = nn.Sequential(
-        #    nn.Linear(self.u_dim, 4),
-        #    nn.ReLU(inplace=True),
-        #    nn.Linear(4, 4),
-        #    nn.ReLU(inplace=True),
-        #    nn.Linear(4, 2*self.z_dim),
-        #    nat_param_act,
-        #) ## for visualisation where self.u_dim == 5 
+        elif self.u_dim == 5:
+        # assert self.u_dim == 5
+            self._lambda = nn.Sequential(
+            nn.Linear(self.u_dim, 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(4, 4),
+            nn.ReLU(inplace=True),
+            nn.Linear(4, 2*self.z_dim),
+            #    nat_param_act,
+        ) ## for visualisation where self.u_dim == 5 
        
         self.set_mask(self.bs)
 
@@ -222,9 +224,27 @@ class iFlow(nn.Module):
         # of shape (B, n, k).
         nat_params = self._lambda(u) 
         nat_params = nat_params.reshape(B, self.z_dim, 2) #+ 1e-5 # force the natural_params to be strictly > 0.
+
+        # Apply activation on xi and eta
+        nat_params = self.nat_param_act(nat_params)
+
+        # Chunk xi and eta from nat params. Apply activation only on xi
+        # nat_params_xi, nat_params_eta = torch.chunk(nat_params, chunks=2, dim=2)
+        # nat_params_xi = self.nat_param_act(nat_params_xi)
+        # nat_params = torch.cat((nat_params_xi, nat_params_eta), dim=2)
+
+        # Chunk xi and eta from nat params. Apply abs only on xi
+        # nat_params_xi, nat_params_eta = torch.chunk(nat_params, chunks=2, dim=2)
+        # nat_params_xi = torch.abs(nat_params_xi)
+        # nat_params = torch.cat((nat_params_xi, nat_params_eta), dim=2)
+
         if self.max_act_val:
             nat_params = nat_params * self.max_act_val #+ 1e-5 #self.mask1
-        nat_params = nat_params * self.mask
+        try:
+            nat_params = nat_params * self.mask
+        except:
+            self.set_mask(nat_params.shape[0])
+            nat_params = nat_params * self.mask
         
         return z, T, nat_params, log_jacobians
 

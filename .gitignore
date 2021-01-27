@@ -1,4 +1,8 @@
-data/
+data*/
 *.pyc
 __pycache__/
-experiments/
+experiments*/
+*experiment/
+
+
+.ipynb_checkpoints/

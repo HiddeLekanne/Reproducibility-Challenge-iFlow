@@ -19,18 +19,14 @@ import os.path as osp
 import pdb
 
 import datetime
-now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 
-EXPERIMENT_FOLDER = osp.join('experiments/', now)
-LOG_FOLDER = osp.join(EXPERIMENT_FOLDER, 'log/')
-TENSORBOARD_RUN_FOLDER = osp.join(EXPERIMENT_FOLDER, 'runs/')
-TORCH_CHECKPOINT_FOLDER = osp.join(EXPERIMENT_FOLDER, 'ckpt/')
-Z_EST_FOLDER = osp.join(EXPERIMENT_FOLDER, 'z_est/')
+
 
 if __name__ == '__main__':
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-f', '--file', default=None, help='path to data file in .npz format. (default None)')
+    parser.add_argument('-exp', '--experiments-folder', default='experiments', help='path to the folder where all the logging is done. (default "experiments")')
     parser.add_argument('-x', '--data-args', type=str, default=None,
                         help='argument string to generate a dataset. '
                              'This should be of the form nps_ns_dl_dd_nl_s_p_a_u_n. '
@@ -55,15 +51,29 @@ if __name__ == '__main__':
     parser.add_argument('-q', '--log-freq', type=int, default=25, help='logging frequency (default 25).')
 
     parser.add_argument('-i', '--i-what', type=str, default="iFlow")
-    parser.add_argument('-ft', '--flow_type', type=str, default="PlanarFlow")
-    parser.add_argument('-nb', '--num_bins', type=int, default=8)
-    parser.add_argument('-npa', '--nat_param_act', type=str, default="Sigmoid")
-    parser.add_argument('-u', '--gpu_id', type=str, default='0')
-    parser.add_argument('-fl', '--flow_length', type=int, default=10)
-    parser.add_argument('-lr_df', '--lr_drop_factor', type=float, default=0.5)
-    parser.add_argument('-lr_pn', '--lr_patience', type=int, default=10)
-
+    parser.add_argument('-ft', '--flow-type', type=str, default="PlanarFlow")
+    parser.add_argument('-nb', '--num-bins', type=int, default=8)
+    parser.add_argument('-npa', '--nat-param_act', type=str, default="Sigmoid")
+    parser.add_argument('-u', '--gpu-id', type=str, default='0')
+    parser.add_argument('-fl', '--flow-length', type=int, default=10)
+    parser.add_argument('-lr_df', '--lr-drop-factor', type=float, default=0.5)
+    parser.add_argument('-lr_pn', '--lr-patience', type=int, default=10)
+    parser.add_argument('-tm', '--trainable-mean', action='store_true', default=False,
+                        help="Use an MLP for the iVAE prior, instead of fixing it at 0.")
+    parser.add_argument('-act', '--activation', type=str, default='lrelu',
+                        help='Activation function used in the MLPs in iVAE.')
+    parser.add_argument('-w', '--weight-decay', type=float, default=0, help="Adam weight decay.")
+    parser.add_argument('-eps', '--epsilon', type=float, default=1e-8, help="Adam epsilon.")
+    parser.add_argument('-ams', '--amsgrad', action='store_true', default=False, help="Use amsgrad changes for Adam.")
     args = parser.parse_args()
+
+    now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+
+    EXPERIMENT_FOLDER = osp.join(args.experiments_folder + '/', now)
+    LOG_FOLDER = osp.join(EXPERIMENT_FOLDER, 'log/')
+    TENSORBOARD_RUN_FOLDER = osp.join(EXPERIMENT_FOLDER, 'runs/')
+    TORCH_CHECKPOINT_FOLDER = osp.join(EXPERIMENT_FOLDER, 'ckpt/')
+    Z_EST_FOLDER = osp.join(EXPERIMENT_FOLDER, 'z_est/')
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args.gpu_id if args.cuda else ""
 
@@ -72,7 +82,7 @@ if __name__ == '__main__':
     np.random.seed(args.seed)
 
     st = time.time()
-
+    # extract seed from argstring used in generating the dataset
     if args.file is None:
         args.file = create_if_not_exist_dataset(root='data/{}/'.format(args.seed), arg_str=args.data_args)
     
@@ -106,22 +116,24 @@ if __name__ == '__main__':
     # define model and optimizer
     model = None
     if args.i_what == 'iVAE':
-        model = iVAE(latent_dim, \
-                 data_dim, \
-                 aux_dim, \
-                 n_layers=args.depth, \
-                 activation='lrelu', \
-                 device=device, \
-                 hidden_dim=args.hidden_dim, \
-                 anneal=args.anneal) # False
+        model = iVAE(latent_dim,
+                     data_dim,
+                     aux_dim,
+                     n_layers=args.depth,
+                     activation=args.activation.lower(),
+                     device=device,
+                     hidden_dim=args.hidden_dim,
+                     trainable_prior_mean=args.trainable_mean
+                 )
     elif args.i_what == 'iFlow':
         metadata.update({"device": device})
         model = iFlow(args=metadata).to(device)
 
-    optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, \
-                                                     factor=args.lr_drop_factor, \
-                                                     patience=args.lr_patience, \
+    optimizer = optim.Adam(model.parameters(), lr=args.lr,
+                           weight_decay=args.weight_decay, eps=args.epsilon, amsgrad=args.amsgrad)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                                                     factor=args.lr_drop_factor,
+                                                     patience=args.lr_patience,
                                                      verbose=True) # factor=0.1 and patience=4
 
     ste = time.time()
@@ -133,7 +145,6 @@ if __name__ == '__main__':
 
     tensorboard_run_name = TENSORBOARD_RUN_FOLDER + 'exp' + str(exp_id) + '_'.join(
         map(str, ['', args.batch_size, args.max_iter, args.lr, args.hidden_dim, args.depth, args.anneal]))
-    # 'runs/exp1_64_12500_0.001_50_3_False'
     
     writer = SummaryWriter(logdir=tensorboard_run_name)
 
@@ -197,7 +208,7 @@ if __name__ == '__main__':
                     writer.add_scalar('data/neg_log_det', logger.get_last('neg_log_det'), acc_itr)
 
                 scheduler.step(logger.get_last('loss'))
-                #scheduler.step(-perf)
+                # scheduler.step(-perf)
 
             if acc_itr % int(args.max_iter / 5) == 0 and not args.no_log:
                 checkpoint(TORCH_CHECKPOINT_FOLDER, \
@@ -207,24 +218,6 @@ if __name__ == '__main__':
                            optimizer, \
                            logger.get_last('loss'), \
                            logger.get_last('perf'))
-            
-            """
-            if args.i_what == 'iVAE':
-                print('----epoch {} iter {}:\tloss: {:.4f};\tperf: {:.4f}'.format(\
-                                                                   epoch, \
-                                                                   itr, \
-                                                                   loss.item(), \
-                                                                   perf))
-            elif args.i_what == 'iFlow':
-                print('----epoch {} iter {}:\tloss: {:.4f} (l1: {:.4f}, l2: {:.4f}, l3: {:.4f});\tperf: {:.4f}'.format(\
-                                                                    epoch, \
-                                                                    itr, \
-                                                                    loss.item(), \
-                                                                    log_normalizer.item(), \
-                                                                    neg_trace.item(), \
-                                                                    neg_log_det.item(), \
-                                                                    perf))
-            """
         
         epoch += 1
         eet = time.time()
