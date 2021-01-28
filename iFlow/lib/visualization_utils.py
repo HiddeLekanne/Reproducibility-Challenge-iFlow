@@ -29,8 +29,8 @@ def model_and_data_from_log(experiment_dir, device, load_model=True):
                 n_layers=int(metadata['depth']), \
                 activation='lrelu', \
                 device='cpu', \
-                hidden_dim=int(metadata['hidden_dim']), \
-                anneal=False) # False
+                hidden_dim=int(metadata['hidden_dim']),
+                trainable_prior_mean=metadata['trainable_mean'])
 
         # Find last checkpoint
         ckpts = listdir(experiment_dir + '/ckpt/1')

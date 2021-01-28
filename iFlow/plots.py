@@ -68,11 +68,14 @@ class Experiment_folder:
             elif attribute == "dataset_difficulty":
                 attribute_value = calculate_difficulty(dset)
 
+            self.experiments[experiment_path][attribute] = attribute_value
+
             with open(experiment_path + '/log/log.json', "r+") as f:
                 json_file = json.load(f)
                 json_file["metadata"][attribute] = attribute_value
                 f.seek(0)
                 json.dump(json_file, f)
+                f.truncate()
 
     def get_model_from_experiment(self, experiment):
         path = self.seed2path[int(experiment[1]["file"].split("_")[6])]
@@ -126,6 +129,7 @@ def plot_attribute(experiment_folders, attribute, ax = None):
         fig = plt.figure()
         ax = fig.add_axes([0,0,1,1])
     YS = []
+    XS = []
     for experiment_folder in experiment_folders:
         Y = []
         for path, experiment in experiment_folder.get_ranked_list("seed"):
@@ -135,9 +139,11 @@ def plot_attribute(experiment_folders, attribute, ax = None):
                 Y.append(experiment[attribute])
         YS.append(Y)
         X = list(range(1, len(Y) + 1))
+        XS.append(X)
+
         ax.plot(X, Y, label="{}: {mean:.3f} ({std:.3f})".format(experiment_folder.name, mean=np.mean(Y), std=np.std(Y)))
     ax.legend()
-    return ax
+    return ax, [XS, YS]
 
 
 def plot_latent_correlation(dset, model, n_samples, sample_offset):
