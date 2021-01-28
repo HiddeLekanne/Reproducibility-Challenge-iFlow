@@ -6,7 +6,7 @@ import os
 import torch
 
 from lib.metrics import mean_corr_coef as mcc
-from lib.metrics import * 
+from lib.metrics import *
 from lib.models import iVAE
 from lib.iFlow import iFlow
 from lib.visualization_utils import model_and_data_from_log
@@ -27,7 +27,7 @@ class Experiment_folder:
         self.get_final_attribute("final_performance")
         self.get_final_attribute("final_loss")
 
-         
+
     def get_ranked_list(self, attribute):
         if attribute == "final_performance" or attribute == "final_loss":
             return sorted(self.experiments.items(), key=lambda experiment: float(experiment[1][attribute]))
@@ -35,7 +35,7 @@ class Experiment_folder:
             return sorted(self.experiments.items(), key=lambda experiment: int(experiment[1]["file"].split("_")[6]))
         else :
             raise NotImplementedError("the attribute: " + str(attribute) +  " has not been implemented.")
-    
+
     def get_final_attribute(self, attribute):
         if not (attribute == "final_performance" or attribute == "final_loss" or attribute == "dataset_difficulty"):
             raise NotImplementedError("the attribute: " + str(attribute) +  " has not been implemented.")
@@ -61,7 +61,7 @@ class Experiment_folder:
 
             if attribute == "final_performance":
                 attribute_value = calculate_mcc(dset, model)
-            elif attribute == "final_loss":    
+            elif attribute == "final_loss":
                 x = dset.x
                 u = dset.u
                 attribute_value = float(model_loss(x, u, model).detach().numpy())
@@ -197,7 +197,7 @@ def align_dimensions(s, z):
 def create_2D_performance_sub_plot(x, labels, ax, cmap, title="", mcc=None):
     if mcc:
         title += f' (MCC: {mcc:.2f})'
-    
+
     ax.scatter(x[:, 0], x[:, 1], c=torch.argmax(labels, dim=1), cmap=cmap, alpha=0.9, s=3)
     ax.set_title(label=title)
     ax.set_xticks([])
@@ -233,6 +233,7 @@ def create_2D_performance_plot(dset, model_iVAE, model_iFlow):
     create_2D_performance_sub_plot(x, u, ax=axs[1], cmap=cmap, title="Observations")
     create_2D_performance_sub_plot(z_est_iFlow, u, ax=axs[2], cmap=cmap, title="iFlow", mcc=mcc(s, z_est_iFlow))
     create_2D_performance_sub_plot(z_est_iVAE, u, ax=axs[3], cmap=cmap, title="iVAE", mcc=mcc(s, z_est_iVAE))
+    plt.tight_layout()
     plt.show()
 
 
@@ -256,6 +257,5 @@ def calculate_difficulty(dset):
         for seg_2 in range(seg + 1, dset.u.shape[1]):
             divergence = kl_divergence_gaussian(means[seg], np.diag(stds[seg]), means[seg_2], np.diag(stds[seg_2]))
             scores.append(divergence)
-    score = np.min(scores) 
+    score = np.min(scores)
     return score
-
