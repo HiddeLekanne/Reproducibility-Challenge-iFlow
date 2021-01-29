@@ -4,7 +4,7 @@ This repository is the a re-implementation of [Identifying through Flows for Rec
 With source code used from the [official repository](https://github.com/MathsXDC/iFlow).
 
 ## Requirements
-This repository uses anaconda for environment management and pytorch for machine learning.
+This repository uses anaconda for environment management and pytorch for machine learning.   
 
 To install and use the cpu environment used in our experiments do:
 ```
@@ -19,7 +19,6 @@ conda activate iFlow-cuda
 ```
 
 ## Training
-TODO: fix the scrips mentioned here
 To train a iFlow model, run this command from the iFlow directory:
 
 ```train
@@ -27,7 +26,7 @@ cd iFlow
 ./scripts/run_iFlow.sh
 ```
 
-A more comprehensive overview is given in the jupyter notebook completeRun. Here the exact configurations used in our reproducibility paper.
+A more comprehensive overview is given in the jupyter notebook results.ipynb. Here the exact configurations used in our reproducibility paper.
 ```completerun
 cd iFlow
 jupyter notebook
