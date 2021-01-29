@@ -181,7 +181,10 @@ def plot_latent_correlation(dset, model, n_samples, sample_offset):
             ax[i].plot(z_scaled_sample)
 
     if isinstance(model, iVAE):
-        fig.suptitle('iVAE')
+        if isinstance(model.prior_mean, torch.Tensor):
+            fig.suptitle('iVAE')
+        else:
+            fig.suptitle('fixed iVAE')
     else:
         fig.suptitle('iFlow')
     plt.show()
