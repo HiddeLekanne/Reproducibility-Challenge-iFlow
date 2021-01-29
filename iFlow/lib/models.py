@@ -85,10 +85,9 @@ class MLP(nn.Module):
             else:
                 layers.append(nn.Linear(dimensions[i - 1], dimensions[i]))
             if ln:
-                print('ln')
                 layers.append(nn.LayerNorm(dimensions[i]))
 
-        #   layers.append(nn.Linear(dimensions[i - 1], dimensions[i]))
+             #layers.append(nn.Linear(dimensions[i - 1], dimensions[i]))
             layers.append(str_to_act(self.activation[i-1]))
 
         layers.append(nn.Linear(dimensions[-1], self.output_dim))
