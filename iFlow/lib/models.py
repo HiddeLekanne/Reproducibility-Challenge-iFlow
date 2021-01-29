@@ -43,13 +43,16 @@ class xTanh(nn.Module):
         """ Hyperbolic tangent plus an additional linear term. """
         return x.tanh() + self.alpha * x
 
+
 class Skip_Layer(nn.Module):
     def __init__(self, in_dim, out_dim):
         super(Skip_Layer, self).__init__()
+
         self.fc = nn.Linear(in_dim, out_dim)
 
     def forward(self, x):
         return self.fc(x) + x
+
 
 class MLP(nn.Module):
     """ Multilayer Perceptron (MLP) as a PyTorch module. """
@@ -87,7 +90,6 @@ class MLP(nn.Module):
             if ln:
                 layers.append(nn.LayerNorm(dimensions[i]))
 
-             #layers.append(nn.Linear(dimensions[i - 1], dimensions[i]))
             layers.append(str_to_act(self.activation[i-1]))
 
         layers.append(nn.Linear(dimensions[-1], self.output_dim))
@@ -256,23 +258,23 @@ class iVAE(nn.Module):
 
         # Encoder parameters, obtained from a concatenation of u and x
         self.encoder_mean = MLP(data_dim + aux_dim,
-                            latent_dim,
-                            hidden_dim,
-                            n_layers,
-                            activation=activation,
-                            slope=slope,
-                            device=device,
-                            ln = ln,
-                            skip = skip)
+                                latent_dim,
+                                hidden_dim,
+                                n_layers,
+                                activation=activation,
+                                slope=slope,
+                                device=device,
+                                ln = ln,
+                                skip = skip)
         self.encoder_log_var = MLP(data_dim + aux_dim,
-                            latent_dim,
-                            hidden_dim,
-                            n_layers,
-                            activation=activation,
-                            slope=slope,
-                            device=device,
-                            ln = ln,
-                            skip = skip)
+                                   latent_dim,
+                                   hidden_dim,
+                                   n_layers,
+                                   activation=activation,
+                                   slope=slope,
+                                   device=device,
+                                   ln = ln,
+                                   skip = skip)
 
         # Initialise weights of linear layers in the model with xavier uniform initialisation
         self.apply(weights_init)
