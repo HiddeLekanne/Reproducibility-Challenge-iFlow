@@ -65,6 +65,10 @@ if __name__ == '__main__':
     parser.add_argument('-w', '--weight-decay', type=float, default=0, help="Adam weight decay.")
     parser.add_argument('-eps', '--epsilon', type=float, default=1e-8, help="Adam epsilon.")
     parser.add_argument('-ams', '--amsgrad', action='store_true', default=False, help="Use amsgrad changes for Adam.")
+
+    parser.add_argument('-ln', '--layernorm', action='store_true', default=False, help='use layer normalization in iVAE')
+    parser.add_argument('-sk', '--skip', action='store_true', default=False, help='use skip connections in iVAE')
+
     args = parser.parse_args()
 
     now = datetime.datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -85,7 +89,7 @@ if __name__ == '__main__':
     # extract seed from argstring used in generating the dataset
     if args.file is None:
         args.file = create_if_not_exist_dataset(root='data/{}/'.format(args.seed), arg_str=args.data_args)
-    
+
     metadata = vars(args).copy()
     del metadata['no_log'], metadata['data_args']
 
@@ -105,7 +109,7 @@ if __name__ == '__main__':
         data_dim, latent_dim, aux_dim = train_loader.get_dims()
         args.N = train_loader.dataset_len
         metadata.update(train_loader.get_metadata())
-    
+
     if args.max_iter is None:
         args.max_iter = len(train_loader) * args.epochs
 
@@ -123,7 +127,9 @@ if __name__ == '__main__':
                      activation=args.activation.lower(),
                      device=device,
                      hidden_dim=args.hidden_dim,
-                     trainable_prior_mean=args.trainable_mean
+                     trainable_prior_mean=args.trainable_mean,
+                     ln = args.layernorm,
+                     skip = args.skip
                  )
     elif args.i_what == 'iFlow':
         metadata.update({"device": device})
@@ -145,7 +151,7 @@ if __name__ == '__main__':
 
     tensorboard_run_name = TENSORBOARD_RUN_FOLDER + 'exp' + str(exp_id) + '_'.join(
         map(str, ['', args.batch_size, args.max_iter, args.lr, args.hidden_dim, args.depth, args.anneal]))
-    
+
     writer = SummaryWriter(logdir=tensorboard_run_name)
 
     if args.i_what == 'iFlow':
@@ -184,7 +190,7 @@ if __name__ == '__main__':
             elif args.i_what == 'iFlow':
                 (log_normalizer, neg_trace, neg_log_det), z_est = model.neg_log_likelihood(x, u)
                 loss = log_normalizer + neg_trace + neg_log_det
-            
+
             loss.backward()
             optimizer.step()
 
@@ -218,7 +224,7 @@ if __name__ == '__main__':
                            optimizer, \
                            logger.get_last('loss'), \
                            logger.get_last('perf'))
-        
+
         epoch += 1
         eet = time.time()
         if args.i_what == 'iVAE':
@@ -254,14 +260,14 @@ if __name__ == '__main__':
         from functools import reduce
         total_num_examples = reduce(operator.mul, map(int, args.data_args.split('_')[:2]))
         model.set_mask(total_num_examples)
-        
+
     assert args.file is not None
     A = np.load(args.file)
 
     x = A['x'] # of shape
     x = torch.from_numpy(x).to(device)
     print("x.shape ==", x.shape)
-    
+
     s = A['s'] # of shape
     #s = torch.from_numpy(s).to(device)
     print("s.shape ==", s.shape)
@@ -282,8 +288,7 @@ if __name__ == '__main__':
     #np.save("{}/z_est.npy".format(Z_EST_FOLDER), z_est)
     #np.save("{}/nat_params.npy".format(Z_EST_FOLDER), nat_params)
     #print("z_est.shape ==", z_est.shape)
-    
+
     perf = mcc(s, z_est)
     print("EVAL PERFORMANCE: {}".format(perf))
     print("DONE.")
-
