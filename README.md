@@ -27,13 +27,13 @@ cd iFlow
 ```
 
 A more comprehensive overview is given in the jupyter notebook results.ipynb. Here the exact configurations used in our reproducibility paper.
-```completerun
+```results
 cd iFlow
 jupyter notebook
 ```
 ## Evaluation
 
-All plots used in the paper can be reprodced and configured in the notebook completeRun.
+All plots used in the paper can be reprodced and configured in the notebook results.
 
 ## Pre-trained Models
 
