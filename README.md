@@ -33,7 +33,7 @@ jupyter notebook
 ```
 ## Evaluation
 
-All plots used in the paper can be reprodced and configured in the notebook results.
+All plots used in the paper can be reproduced and configured in the notebook "results.ipynb".
 
 ## Pre-trained Models
 
