@@ -21,7 +21,7 @@ source activate iFlow-cuda
 for seed in $(seq 1 100)
 do
     python main.py \
-        -x 1000_5_2_2_3_$seed'_'gauss_xtanh_u_f \
+        -x 1000_5_5_5_3_$seed'_'gauss_xtanh_u_f \
         -i iVAE \
         -ft RQNSF_AG \
         -npa Softplus \
