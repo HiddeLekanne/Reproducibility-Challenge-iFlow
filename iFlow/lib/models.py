@@ -43,18 +43,24 @@ class xTanh(nn.Module):
         """ Hyperbolic tangent plus an additional linear term. """
         return x.tanh() + self.alpha * x
 
+class Skip_Layer(nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super(Skip_Layer, self).__init__()
+        self.fc = nn.Linear(in_dim, out_dim)
+
+    def forward(self, x):
+        return self.fc(x) + x
 
 class MLP(nn.Module):
     """ Multilayer Perceptron (MLP) as a PyTorch module. """
-
-    def __init__(self, input_dim, output_dim, hidden_dim, n_layers, activation='none', slope=.1, device='cpu'):
+    def __init__(self, input_dim, output_dim, hidden_dim, n_layers, activation='none', slope=.1, device='cpu', ln = False, skip = False):
         super(MLP, self).__init__()
-        
+
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.n_layers = n_layers
         self.device = device
-        
+
         if isinstance(hidden_dim, Number):
             self.hidden_dim = [hidden_dim] * (self.n_layers - 1)
         elif isinstance(hidden_dim, list):
@@ -74,8 +80,17 @@ class MLP(nn.Module):
         layers = []
 
         for i in range(1, len(dimensions)):
-            layers.append(nn.Linear(dimensions[i - 1], dimensions[i]))
+            if dimensions[i - 1] == dimensions[i] and skip:
+                layers.append(Skip_Layer(dimensions[i - 1], dimensions[i]))
+            else:
+                layers.append(nn.Linear(dimensions[i - 1], dimensions[i]))
+            if ln:
+                print('ln')
+                layers.append(nn.LayerNorm(dimensions[i]))
+
+        #   layers.append(nn.Linear(dimensions[i - 1], dimensions[i]))
             layers.append(str_to_act(self.activation[i-1]))
+
         layers.append(nn.Linear(dimensions[-1], self.output_dim))
 
         # Create nn.Sequential with all layers and move the model to the correct device
@@ -130,7 +145,7 @@ class Normal(Dist):
     def log_pdf_full(self, x, mu, v):
         """
         Compute the log-pdf of a normal distribution with full covariance.
-        
+
             v is a batch of "pseudo sqrt" of covariance matrices of shape (batch_size, d_latent, d_latent)
             mu is batch of means of shape (batch_size, d_latent)
         """
@@ -185,10 +200,11 @@ class Laplace(Dist):
 
 class iVAE(nn.Module):
     """ Identifiable Variational Autoencoder. """
-    def __init__(self, latent_dim, data_dim, aux_dim, 
+    def __init__(self, latent_dim, data_dim, aux_dim,
                  prior=None, decoder=None, encoder=None,
-                 n_layers=3, hidden_dim=50, activation='lrelu', slope=.1, 
-                 trainable_prior_mean=True, device='cpu'):
+                 n_layers=3, hidden_dim=50, activation='lrelu', slope=.1,
+                 trainable_prior_mean=True, device='cpu',
+                 ln = False, skip = False):
 
         super(iVAE, self).__init__()
 
@@ -211,47 +227,53 @@ class iVAE(nn.Module):
             # As done in the iFlow paper, keep the prior mean fixed at 0
             self.prior_mean = lambda _: torch.zeros(latent_dim).to(self.device)
         else:
-            self.prior_mean = MLP(aux_dim, 
-                                  latent_dim, 
-                                  hidden_dim, 
-                                  n_layers, 
-                                  activation=activation, 
-                                  slope=slope, 
+            self.prior_mean = MLP(aux_dim,
+                                  latent_dim,
+                                  hidden_dim,
+                                  n_layers,
+                                  activation=activation,
+                                  slope=slope,
                                   device=device)
-        self.prior_log_var = MLP(aux_dim, 
-                                 latent_dim, 
-                                 hidden_dim, 
-                                 n_layers, 
-                                 activation=activation, 
-                                 slope=slope, 
+        self.prior_log_var = MLP(aux_dim,
+                                 latent_dim,
+                                 hidden_dim,
+                                 n_layers,
+                                 activation=activation,
+                                 slope=slope,
                                  device=device)
 
         # Decoder
-        self.decoder = MLP(latent_dim, 
-                           data_dim, 
-                           hidden_dim, 
-                           n_layers, 
-                           activation=activation, 
-                           slope=slope, 
-                           device=device)
+        self.decoder = MLP(latent_dim,
+                           data_dim,
+                           hidden_dim,
+                           n_layers,
+                           activation=activation,
+                           slope=slope,
+                           device=device,
+                           ln = ln,
+                           skip = skip)
         # Fixed decoder variance
         self.decoder_var = .01 * torch.ones(latent_dim).to(device)
 
         # Encoder parameters, obtained from a concatenation of u and x
-        self.encoder_mean = MLP(data_dim + aux_dim, 
-                                latent_dim, 
-                                hidden_dim, 
-                                n_layers, 
-                                activation=activation, 
-                                slope=slope,
-                                device=device)
-        self.encoder_log_var = MLP(data_dim + aux_dim, 
-                                   latent_dim, 
-                                   hidden_dim, 
-                                   n_layers, 
-                                   activation=activation, 
-                                   slope=slope,
-                                   device=device)
+        self.encoder_mean = MLP(data_dim + aux_dim,
+                            latent_dim,
+                            hidden_dim,
+                            n_layers,
+                            activation=activation,
+                            slope=slope,
+                            device=device,
+                            ln = ln,
+                            skip = skip)
+        self.encoder_log_var = MLP(data_dim + aux_dim,
+                            latent_dim,
+                            hidden_dim,
+                            n_layers,
+                            activation=activation,
+                            slope=slope,
+                            device=device,
+                            ln = ln,
+                            skip = skip)
 
         # Initialise weights of linear layers in the model with xavier uniform initialisation
         self.apply(weights_init)
@@ -301,4 +323,3 @@ class iVAE(nn.Module):
         # log_pz_u = dist.independent.Independent(dist.normal.Normal(prior_params[0], prior_params[1].sqrt()), 0).log_prob(z).sum(-1)
 
         return (log_px_z + log_pz_u - log_qz_xu).mean(), z
-
