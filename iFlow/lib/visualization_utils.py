@@ -18,6 +18,8 @@ def model_and_data_from_log(experiment_dir, device, load_model=True):
     else:
         dset = SyntheticDataset(metadata['file'], device)
 
+    print(experiment_dir)
+    trainable_mean = metadata.get('trainable_mean')
     # Create model
     if load_model:
         if metadata['i_what'] == 'iFlow':
@@ -30,7 +32,7 @@ def model_and_data_from_log(experiment_dir, device, load_model=True):
                 activation='lrelu', \
                 device='cpu', \
                 hidden_dim=int(metadata['hidden_dim']),
-                trainable_prior_mean=metadata['trainable_mean'])
+                trainable_prior_mean=trainable_mean)
 
         # Find last checkpoint
         ckpts = listdir(experiment_dir + '/ckpt/1')
