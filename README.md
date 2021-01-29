@@ -37,26 +37,13 @@ jupyter notebook
 All plots used in the paper can be reprodced and configured in the notebook completeRun.
 
 ## Pre-trained Models
-TODO
-You can download pretrained models here:
 
-<!---- [My awesome model](https://drive.google.com/mymodel.pth) trained on ImageNet using parameters x,y,z. --->
-
-<!---- >📋  Give a link to where/how the pretrained models can be downloaded and how they were trained (if applicable).  Alternatively you can have an additional column in your results table with a link to the models. --->
+Two models for every experiment (seed 1 & 2) are present in the repository to quickly test things.
 
 ## Results
-TODO
-Our model achieves the following performance on :
+What the different models do (iFlow & iVAE-fixed):  
+![Screenshot](.pictures/2D_performance_fixed_iVAE.png)
 
-<!----### [Image Classification on ImageNet](https://paperswithcode.com/sota/image-classification-on-imagenet)
+How the different models perform:  
+![Screenshot](.pictures/violin_plot_fixed.png)
 
-<!----| Model name         | Top 1 Accuracy  | Top 5 Accuracy |
-<!----| ------------------ |---------------- | -------------- |
-<!----| My awesome model   |     85%         |      95%       |
-
-<!---- >📋  Include a table of results from your paper, and link back to the leaderboard for clarity and context. If your main result is a figure, include that figure and link to the command or notebook to reproduce it. 
-
-
-<!----## Contributing
-
-<!---- >📋  Pick a licence and describe how to contribute to your code repository. 
